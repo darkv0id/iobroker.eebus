@@ -8,8 +8,9 @@
 // you need to create an adapter
 const utils = require('@iobroker/adapter-core');
 
-// Load your modules here, e.g.:
-// const fs = require('fs');
+// Load EEBus bridge and state manager
+const EEBusBridge = require('./lib/eebusBridge');
+const StateManager = require('./lib/stateManager');
 
 class Eebus extends utils.Adapter {
 	/**
@@ -25,6 +26,10 @@ class Eebus extends utils.Adapter {
 		// this.on('objectChange', this.onObjectChange.bind(this));
 		// this.on('message', this.onMessage.bind(this));
 		this.on('unload', this.onUnload.bind(this));
+
+		// Initialize EEBus components
+		this.bridge = null;
+		this.stateManager = null;
 	}
 
 	/**
@@ -32,60 +37,133 @@ class Eebus extends utils.Adapter {
 	 */
 	async onReady() {
 		// Initialize your adapter here
+		this.log.info('Starting EEBus adapter');
 
-		// The adapters config (in the instance object everything under the attribute "native") is accessible via
-		// this.config:
-		this.log.debug('config option1: ${this.config.option1}');
-		this.log.debug('config option2: ${this.config.option2}');
+		// Create info states
+		await this.createInfoStates();
 
-		/*
-		For every state in the system there has to be also an object of type state
-		Here a simple template for a boolean variable named "testVariable"
-		Because every adapter instance uses its own unique namespace variable names can't collide with other adapters variables
+		// Initialize state manager
+		this.stateManager = new StateManager(this);
 
-		IMPORTANT: State roles should be chosen carefully based on the state's purpose.
-		           Please refer to the state roles documentation for guidance:
-		           https://www.iobroker.net/#en/documentation/dev/stateroles.md
-		*/
-		await this.setObjectNotExistsAsync('testVariable', {
-			type: 'state',
+		// Initialize and start EEBus bridge
+		try {
+			this.bridge = new EEBusBridge(this, {
+				// Bridge options can be added here
+			});
+
+			// Set up bridge event handlers
+			this.setupBridgeHandlers();
+
+			// Start the bridge
+			await this.bridge.start();
+
+			this.log.info('EEBus adapter started successfully');
+		} catch (error) {
+			this.log.error(`Failed to start EEBus bridge: ${error.message}`);
+			this.log.info('The adapter will continue running but EEBus functionality will be unavailable');
+			this.log.info('Please ensure the EEBus bridge binary is available');
+
+			// Set connection state to false
+			await this.setState('info.connection', false, true);
+		}
+	}
+
+	/**
+	 * Create info states for adapter status
+	 */
+	async createInfoStates() {
+		await this.setObjectNotExistsAsync('info', {
+			type: 'channel',
 			common: {
-				name: 'testVariable',
-				type: 'boolean',
-				role: 'indicator',
-				read: true,
-				write: true,
+				name: 'Information',
 			},
 			native: {},
 		});
 
-		// In order to get state updates, you need to subscribe to them. The following line adds a subscription for our variable we have created above.
-		this.subscribeStates('testVariable');
-		// You can also add a subscription for multiple states. The following line watches all states starting with "lights."
-		// this.subscribeStates('lights.*');
-		// Or, if you really must, you can also watch all states. Don't do this if you don't need to. Otherwise this will cause a lot of unnecessary load on the system:
-		// this.subscribeStates('*');
+		await this.setObjectNotExistsAsync('info.connection', {
+			type: 'state',
+			common: {
+				name: 'Bridge Connection',
+				type: 'boolean',
+				role: 'indicator.connected',
+				read: true,
+				write: false,
+			},
+			native: {},
+		});
 
-		/*
-			setState examples
-			you will notice that each setState will cause the stateChange event to fire (because of above subscribeStates cmd)
-		*/
-		// the variable testVariable is set to true as command (ack=false)
-		await this.setState('testVariable', true);
+		await this.setObjectNotExistsAsync('info.discovery', {
+			type: 'state',
+			common: {
+				name: 'Discovery Active',
+				type: 'boolean',
+				role: 'indicator',
+				read: true,
+				write: false,
+			},
+			native: {},
+		});
 
-		// same thing, but the value is flagged "ack"
-		// ack should be always set to true if the value is received from or acknowledged from the target system
-		await this.setState('testVariable', { val: true, ack: true });
+		// Initialize with default values
+		await this.setState('info.connection', false, true);
+		await this.setState('info.discovery', false, true);
+	}
 
-		// same thing, but the state is deleted after 30s (getState will return null afterwards)
-		await this.setState('testVariable', { val: true, ack: true, expire: 30 });
+	/**
+	 * Set up event handlers for the EEBus bridge
+	 */
+	setupBridgeHandlers() {
+		// Bridge connected
+		this.bridge.on('connected', () => {
+			this.log.info('Bridge connected');
+			this.setState('info.connection', true, true);
+		});
 
-		// examples for the checkPassword/checkGroup functions
-		const pwdResult = await this.checkPasswordAsync('admin', 'iobroker');
-		this.log.info(`check user admin pw iobroker: ${pwdResult}`);
+		// Bridge disconnected
+		this.bridge.on('disconnected', () => {
+			this.log.warn('Bridge disconnected');
+			this.setState('info.connection', false, true);
+		});
 
-		const groupResult = await this.checkGroupAsync('admin', 'admin');
-		this.log.info(`check group user admin group admin: ${groupResult}`);
+		// Bridge failed permanently
+		this.bridge.on('failed', () => {
+			this.log.error('Bridge failed permanently after multiple restart attempts');
+			this.setState('info.connection', false, true);
+		});
+
+		// Device discovered
+		this.bridge.on('deviceDiscovered', async (device) => {
+			this.log.info(`Device discovered: ${device.name} (${device.ski})`);
+			await this.stateManager.createDevice(device);
+		});
+
+		// Device connected
+		this.bridge.on('deviceConnected', async (payload) => {
+			this.log.info(`Device connected: ${payload.ski}`);
+			await this.stateManager.updateConnectionState(payload.ski, true);
+		});
+
+		// Device disconnected
+		this.bridge.on('deviceDisconnected', async (payload) => {
+			this.log.info(`Device disconnected: ${payload.ski}`);
+			await this.stateManager.updateConnectionState(payload.ski, false);
+		});
+
+		// Measurement update
+		this.bridge.on('measurementUpdate', async (payload) => {
+			this.log.debug(`Measurement update for ${payload.ski}`);
+			await this.stateManager.updateMeasurements(payload.ski, payload.measurements);
+		});
+
+		// Generic event handler for debugging
+		this.bridge.on('event', (action, payload) => {
+			this.log.debug(`Bridge event: ${action}, payload: ${JSON.stringify(payload)}`);
+		});
+
+		// Error handler
+		this.bridge.on('error', (error) => {
+			this.log.error(`Bridge error: ${error.message}`);
+		});
 	}
 
 	/**
@@ -93,14 +171,20 @@ class Eebus extends utils.Adapter {
 	 *
 	 * @param {() => void} callback - Callback function
 	 */
-	onUnload(callback) {
+	async onUnload(callback) {
 		try {
-			// Here you must clear all timeouts or intervals that may still be active
-			// clearTimeout(timeout1);
-			// clearTimeout(timeout2);
-			// ...
-			// clearInterval(interval1);
+			this.log.info('Shutting down EEBus adapter');
 
+			// Stop the bridge if running
+			if (this.bridge) {
+				await this.bridge.stop();
+			}
+
+			// Update connection state
+			await this.setState('info.connection', false, true);
+			await this.setState('info.discovery', false, true);
+
+			this.log.info('EEBus adapter stopped');
 			callback();
 		} catch (error) {
 			this.log.error(`Error during unloading: ${error.message}`);

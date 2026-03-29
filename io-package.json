@@ -83,8 +83,10 @@
 		]
 	},
 	"native": {
-		"option1": true,
-		"option2": "42"
+		"autoDiscovery": true,
+		"certificatePath": "",
+		"updateInterval": 5,
+		"logLevel": "info"
 	},
 	"objects": [],
 	"instanceObjects": []

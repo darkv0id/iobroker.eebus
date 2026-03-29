@@ -2,9 +2,62 @@
 	"i18n": true,
 	"type": "panel",
 	"items": {
-		"option1": {
+		"_info": {
+			"type": "header",
+			"text": "EEBus Adapter Configuration",
+			"size": 3
+		},
+		"_infoText": {
+			"type": "staticText",
+			"text": "This adapter integrates EEBus-enabled devices (heat pumps, EV chargers, etc.) into ioBroker. The EEBus bridge will automatically discover devices on your local network.",
+			"newLine": true
+		},
+		"_discovery": {
+			"type": "header",
+			"text": "Discovery Settings",
+			"size": 4,
+			"newLine": true
+		},
+		"autoDiscovery": {
 			"type": "checkbox",
-			"label": "option1",
+			"label": "Automatic Device Discovery",
+			"newLine": true,
+			"default": true,
+			"xs": 12,
+			"sm": 12,
+			"md": 6,
+			"lg": 4,
+			"xl": 4
+		},
+		"_connection": {
+			"type": "header",
+			"text": "Connection Settings",
+			"size": 4,
+			"newLine": true
+		},
+		"certificatePath": {
+			"type": "text",
+			"label": "Certificate Directory",
+			"placeholder": "/opt/iobroker/iobroker-data/eebus.0/certificates",
+			"newLine": true,
+			"xs": 12,
+			"sm": 12,
+			"md": 6,
+			"lg": 6,
+			"xl": 6
+		},
+		"_advanced": {
+			"type": "header",
+			"text": "Advanced Settings",
+			"size": 4,
+			"newLine": true
+		},
+		"updateInterval": {
+			"type": "number",
+			"label": "Update Interval (seconds)",
+			"default": 5,
+			"min": 1,
+			"max": 60,
 			"newLine": true,
 			"xs": 12,
 			"sm": 12,
@@ -12,9 +65,16 @@
 			"lg": 4,
 			"xl": 4
 		},
-		"option2": {
-			"type": "text",
-			"label": "option2",
+		"logLevel": {
+			"type": "select",
+			"label": "Bridge Log Level",
+			"options": [
+				{"label": "Error", "value": "error"},
+				{"label": "Warning", "value": "warn"},
+				{"label": "Info", "value": "info"},
+				{"label": "Debug", "value": "debug"}
+			],
+			"default": "info",
 			"newLine": true,
 			"xs": 12,
 			"sm": 12,
