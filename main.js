@@ -66,8 +66,11 @@ class Eebus extends utils.Adapter {
 			// Set connection state to false
 			await this.setState('info.connection', false, true);
 
-			// Rethrow error to prevent adapter from starting
-			throw error;
+			// Terminate the adapter properly instead of throwing
+			// This prevents "unhandled promise rejection" errors
+			this.terminate
+				? this.terminate('EEBus bridge initialization failed', 11)
+				: process.exit(11);
 		}
 	}
 
