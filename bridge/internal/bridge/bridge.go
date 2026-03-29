@@ -9,6 +9,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/darkv0id/iobroker.eebus/bridge/internal/eebus"
 	"github.com/darkv0id/iobroker.eebus/bridge/pkg/protocol"
 )
 
@@ -21,6 +22,7 @@ type Bridge struct {
 	cancel          context.CancelFunc
 	commandHandlers map[string]CommandHandler
 	wg              sync.WaitGroup
+	eebusService    *eebus.Service
 }
 
 // CommandHandler is a function that handles a command
@@ -41,6 +43,16 @@ func New(input io.Reader, output io.Writer) *Bridge {
 // RegisterHandler registers a command handler
 func (b *Bridge) RegisterHandler(action string, handler CommandHandler) {
 	b.commandHandlers[action] = handler
+}
+
+// SetEEBusService sets the EEBus service instance
+func (b *Bridge) SetEEBusService(service *eebus.Service) {
+	b.eebusService = service
+}
+
+// GetEEBusService returns the EEBus service instance
+func (b *Bridge) GetEEBusService() *eebus.Service {
+	return b.eebusService
 }
 
 // Start starts the bridge and begins processing messages
@@ -174,6 +186,12 @@ func (b *Bridge) SendEvent(action string, payload map[string]interface{}) error 
 // This method is for coordinating shutdown of other components (like EEBus service).
 func (b *Bridge) Stop() {
 	log.Println("Bridge stopping...")
+
+	// Stop EEBus service if it exists
+	if b.eebusService != nil {
+		b.eebusService.Stop()
+	}
+
 	b.cancel() // Cancel context to signal all components to stop
 	b.wg.Wait() // Wait for all goroutines to finish
 	log.Println("Bridge stopped")

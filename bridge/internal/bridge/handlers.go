@@ -11,8 +11,6 @@ import (
 // HandlerManager manages command handlers and their dependencies
 type HandlerManager struct {
 	bridge *Bridge
-	// Add EEBus service here later
-	// eebusService *eebus.Service
 }
 
 // NewHandlerManager creates a new handler manager
@@ -31,17 +29,24 @@ func (hm *HandlerManager) RegisterAll() {
 	hm.bridge.RegisterHandler(protocol.ActionSubscribeMeasurements, hm.handleSubscribeMeasurements)
 	hm.bridge.RegisterHandler(protocol.ActionUnsubscribeMeasurements, hm.handleUnsubscribeMeasurements)
 	hm.bridge.RegisterHandler(protocol.ActionGetDeviceInfo, hm.handleGetDeviceInfo)
+	hm.bridge.RegisterHandler(protocol.ActionListDevices, hm.handleListDevices)
 }
 
 // handleStartDiscovery starts device discovery
 func (hm *HandlerManager) handleStartDiscovery(ctx context.Context, msg *protocol.Message) (*protocol.Message, error) {
 	log.Println("Starting device discovery...")
 
-	// TODO: Start mDNS discovery via EEBus service
-	// For now, just return success
+	service := hm.bridge.GetEEBusService()
+	if service == nil {
+		return nil, fmt.Errorf("EEBus service not initialized")
+	}
+
+	// Note: EEBus service automatically starts mDNS discovery when it starts
+	// Discovery is always active while the service is running
 
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
 		"status": "started",
+		"note":   "Discovery is automatically active",
 	}), nil
 }
 
@@ -49,10 +54,12 @@ func (hm *HandlerManager) handleStartDiscovery(ctx context.Context, msg *protoco
 func (hm *HandlerManager) handleStopDiscovery(ctx context.Context, msg *protocol.Message) (*protocol.Message, error) {
 	log.Println("Stopping device discovery...")
 
-	// TODO: Stop mDNS discovery via EEBus service
+	// Note: Discovery cannot be stopped without stopping the entire service
+	// It's always active while the service is running
 
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
-		"status": "stopped",
+		"status": "active",
+		"note":   "Discovery cannot be stopped individually",
 	}), nil
 }
 
@@ -65,11 +72,24 @@ func (hm *HandlerManager) handleConnectDevice(ctx context.Context, msg *protocol
 
 	log.Printf("Connecting to device: %s", ski)
 
-	// TODO: Connect to device via EEBus service
+	service := hm.bridge.GetEEBusService()
+	if service == nil {
+		return nil, fmt.Errorf("EEBus service not initialized")
+	}
+
+	// Check if device exists
+	device, exists := service.GetDevice(ski)
+	if !exists {
+		return nil, fmt.Errorf("device not found: %s", ski)
+	}
+
+	// Note: EEBus service automatically manages connections when devices are discovered
+	// We just verify the device is known
 
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
-		"status": "connected",
-		"ski":    ski,
+		"status":    "connected",
+		"ski":       ski,
+		"connected": device.Connected,
 	}), nil
 }
 
@@ -82,11 +102,13 @@ func (hm *HandlerManager) handleDisconnectDevice(ctx context.Context, msg *proto
 
 	log.Printf("Disconnecting from device: %s", ski)
 
-	// TODO: Disconnect from device via EEBus service
+	// Note: EEBus service manages connections automatically
+	// Explicit disconnect is not supported in the current implementation
 
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
-		"status": "disconnected",
+		"status": "noted",
 		"ski":    ski,
+		"note":   "Connection is managed automatically by EEBus service",
 	}), nil
 }
 
@@ -99,11 +121,24 @@ func (hm *HandlerManager) handleSubscribeMeasurements(ctx context.Context, msg *
 
 	log.Printf("Subscribing to measurements for device: %s", ski)
 
-	// TODO: Subscribe to measurements via EEBus service
+	service := hm.bridge.GetEEBusService()
+	if service == nil {
+		return nil, fmt.Errorf("EEBus service not initialized")
+	}
+
+	// Check if device exists
+	_, exists := service.GetDevice(ski)
+	if !exists {
+		return nil, fmt.Errorf("device not found: %s", ski)
+	}
+
+	// Note: MGCP/MPC use cases automatically receive measurement updates
+	// when devices support those use cases. No explicit subscription is needed.
 
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
 		"status": "subscribed",
 		"ski":    ski,
+		"note":   "Measurements are automatically received via MGCP/MPC use cases",
 	}), nil
 }
 
@@ -116,11 +151,13 @@ func (hm *HandlerManager) handleUnsubscribeMeasurements(ctx context.Context, msg
 
 	log.Printf("Unsubscribing from measurements for device: %s", ski)
 
-	// TODO: Unsubscribe from measurements via EEBus service
+	// Note: Measurements are always active for supported use cases
+	// Cannot be unsubscribed individually
 
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
-		"status": "unsubscribed",
+		"status": "noted",
 		"ski":    ski,
+		"note":   "Measurements cannot be unsubscribed individually",
 	}), nil
 }
 
@@ -133,11 +170,53 @@ func (hm *HandlerManager) handleGetDeviceInfo(ctx context.Context, msg *protocol
 
 	log.Printf("Getting device info for: %s", ski)
 
-	// TODO: Get device info via EEBus service
+	service := hm.bridge.GetEEBusService()
+	if service == nil {
+		return nil, fmt.Errorf("EEBus service not initialized")
+	}
+
+	device, exists := service.GetDevice(ski)
+	if !exists {
+		return nil, fmt.Errorf("device not found: %s", ski)
+	}
 
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
-		"ski":  ski,
-		"name": "Unknown Device",
-		"type": "Unknown",
+		"ski":          device.SKI,
+		"name":         device.Name,
+		"brandName":    device.BrandName,
+		"deviceModel":  device.DeviceModel,
+		"serialNumber": device.SerialNumber,
+		"deviceType":   device.DeviceType,
+		"connected":    device.Connected,
+	}), nil
+}
+
+// handleListDevices lists all discovered devices
+func (hm *HandlerManager) handleListDevices(ctx context.Context, msg *protocol.Message) (*protocol.Message, error) {
+	log.Println("Listing all devices...")
+
+	service := hm.bridge.GetEEBusService()
+	if service == nil {
+		return nil, fmt.Errorf("EEBus service not initialized")
+	}
+
+	devices := service.GetDevices()
+	deviceList := make([]map[string]interface{}, len(devices))
+
+	for i, device := range devices {
+		deviceList[i] = map[string]interface{}{
+			"ski":          device.SKI,
+			"name":         device.Name,
+			"brandName":    device.BrandName,
+			"deviceModel":  device.DeviceModel,
+			"serialNumber": device.SerialNumber,
+			"deviceType":   device.DeviceType,
+			"connected":    device.Connected,
+		}
+	}
+
+	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
+		"devices": deviceList,
+		"count":   len(deviceList),
 	}), nil
 }

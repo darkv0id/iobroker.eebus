@@ -26,13 +26,14 @@ type Message struct {
 
 // Command Actions (Node.js -> Go)
 const (
-	ActionStartDiscovery      = "startDiscovery"
-	ActionStopDiscovery       = "stopDiscovery"
-	ActionConnectDevice       = "connectDevice"
-	ActionDisconnectDevice    = "disconnectDevice"
-	ActionSubscribeMeasurements = "subscribeMeasurements"
-	ActionUnsubscribeMeasurements = "unsubscribeMeasurements"
-	ActionGetDeviceInfo       = "getDeviceInfo"
+	ActionStartDiscovery            = "startDiscovery"
+	ActionStopDiscovery             = "stopDiscovery"
+	ActionConnectDevice             = "connectDevice"
+	ActionDisconnectDevice          = "disconnectDevice"
+	ActionSubscribeMeasurements     = "subscribeMeasurements"
+	ActionUnsubscribeMeasurements   = "unsubscribeMeasurements"
+	ActionGetDeviceInfo             = "getDeviceInfo"
+	ActionListDevices               = "listDevices"
 )
 
 // Event Actions (Go -> Node.js)
