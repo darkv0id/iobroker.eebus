@@ -60,11 +60,14 @@ class Eebus extends utils.Adapter {
 			this.log.info('EEBus adapter started successfully');
 		} catch (error) {
 			this.log.error(`Failed to start EEBus bridge: ${error.message}`);
-			this.log.info('The adapter will continue running but EEBus functionality will be unavailable');
-			this.log.info('Please ensure the EEBus bridge binary is available');
+			this.log.error('Cannot start adapter without functional EEBus bridge');
+			this.log.error('Please ensure the EEBus bridge binary is available');
 
 			// Set connection state to false
 			await this.setState('info.connection', false, true);
+
+			// Rethrow error to prevent adapter from starting
+			throw error;
 		}
 	}
 
