@@ -1,0 +1,91 @@
+{
+	"common": {
+		"name": "eebus",
+		"version": "0.0.1",
+		"news": {
+			"0.0.1": {
+				"en": "initial release",
+				"de": "Erstveröffentlichung",
+				"ru": "Начальная версия",
+				"pt": "lançamento inicial",
+				"nl": "Eerste uitgave",
+				"fr": "Première version",
+				"it": "Versione iniziale",
+				"es": "Versión inicial",
+				"pl": "Pierwsze wydanie",
+				"uk": "Початкова версія",
+				"zh-cn": "首次出版"
+			}
+		},
+		"titleLang": {
+			"en": "EEBus",
+			"de": "EEBus",
+			"ru": "EEBus",
+			"pt": "Ônibus EE",
+			"nl": "EEBus",
+			"fr": "EEBus",
+			"it": "EEBus",
+			"es": "EEBus",
+			"pl": "EEBus",
+			"uk": "EEBus",
+			"zh-cn": "EE总线"
+		},
+		"desc": {
+			"en": "eebus",
+			"de": "eebus",
+			"ru": "автобус",
+			"pt": "eebus",
+			"nl": "eebus",
+			"fr": "eebus",
+			"it": "eebus",
+			"es": "ebus",
+			"pl": "eebus",
+			"uk": "eebus",
+			"zh-cn": "电动巴士"
+		},
+		"authors": [
+			"Seemonster <darkv0id@darkv0id.de>"
+		],
+		"keywords": [
+			"template",
+			"automation",
+			"IoT",
+			"integration"
+		],
+		"licenseInformation": {
+			"type": "free",
+			"license": "MIT"
+		},
+		"platform": "Javascript/Node.js",
+		"icon": "eebus.png",
+		"enabled": true,
+		"extIcon": "https://raw.githubusercontent.com/darkv0id/ioBroker.eebus/main/admin/eebus.png",
+		"readme": "https://github.com/darkv0id/ioBroker.eebus/blob/main/README.md",
+		"loglevel": "info",
+		"tier": 3,
+		"mode": "daemon",
+		"type": "climate-control",
+		"compact": true,
+		"connectionType": "local",
+		"dataSource": "push",
+		"adminUI": {
+			"config": "json"
+		},
+		"dependencies": [
+			{
+				"js-controller": ">=6.0.11"
+			}
+		],
+		"globalDependencies": [
+			{
+				"admin": ">=7.0.23"
+			}
+		]
+	},
+	"native": {
+		"option1": true,
+		"option2": "42"
+	},
+	"objects": [],
+	"instanceObjects": []
+}
