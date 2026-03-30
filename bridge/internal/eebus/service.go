@@ -670,11 +670,39 @@ func (s *Service) ServiceShipIDUpdate(ski string, shipdID string) {
 	log.Printf("Service SHIP ID update: SKI=%s, SHIP ID=%s", ski, shipdID)
 }
 
+// connectionStateToString converts ConnectionState enum to string name
+func connectionStateToString(state shipapi.ConnectionState) string {
+	switch state {
+	case shipapi.ConnectionStateNone:
+		return "none"
+	case shipapi.ConnectionStateQueued:
+		return "queued"
+	case shipapi.ConnectionStateInitiated:
+		return "initiated"
+	case shipapi.ConnectionStateReceivedPairingRequest:
+		return "waiting_for_approval"
+	case shipapi.ConnectionStateInProgress:
+		return "in_progress"
+	case shipapi.ConnectionStateTrusted:
+		return "trusted"
+	case shipapi.ConnectionStatePin:
+		return "pin"
+	case shipapi.ConnectionStateCompleted:
+		return "approved"
+	case shipapi.ConnectionStateRemoteDeniedTrust:
+		return "denied"
+	case shipapi.ConnectionStateError:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
 // ServicePairingDetailUpdate is called when pairing details are updated
 func (s *Service) ServicePairingDetailUpdate(ski string, detail *shipapi.ConnectionStateDetail) {
 	state := "unknown"
 	if detail != nil {
-		state = string(detail.State())
+		state = connectionStateToString(detail.State())
 	}
 	log.Printf("Service pairing update: SKI=%s, State=%s", ski, state)
 
