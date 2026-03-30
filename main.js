@@ -178,6 +178,11 @@ class Eebus extends utils.Adapter {
 		// Device connected
 		this.bridge.on('deviceConnected', async (payload) => {
 			this.log.info(`Device connected: ${payload.ski}`);
+
+			// Create device object if it doesn't exist yet
+			// (deviceDiscovered event may not be sent for all devices)
+			await this.stateManager.ensureDeviceExists(payload.ski);
+
 			await this.stateManager.updateConnectionState(payload.ski, true);
 		});
 
