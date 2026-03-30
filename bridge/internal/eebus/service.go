@@ -642,17 +642,24 @@ func (s *Service) RemoteSKIConnected(service api.ServiceInterface, ski string) {
 func (s *Service) RemoteSKIDisconnected(service api.ServiceInterface, ski string) {
 	log.Printf("Remote SKI disconnected: %s", ski)
 
+	// Only emit disconnect event if device was previously connected
+	// This avoids emitting disconnects during the pairing handshake
+	wasConnected := false
 	s.devicesMux.Lock()
 	if device, exists := s.devices[ski]; exists {
+		wasConnected = device.Connected
 		device.Connected = false
 	}
 	s.devicesMux.Unlock()
 
-	if s.eventCB != nil {
+	// Only emit event if the device was actually connected before
+	if wasConnected && s.eventCB != nil {
 		s.eventCB(Event{
 			Type: "deviceDisconnected",
 			SKI:  ski,
 		})
+	} else {
+		log.Printf("Skipping disconnect event for %s (was not connected)", ski)
 	}
 }
 
