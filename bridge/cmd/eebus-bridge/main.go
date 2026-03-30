@@ -72,6 +72,22 @@ func main() {
 				payload[k] = v
 			}
 
+		case "pairingStateUpdate":
+			action = protocol.EventPairingStateUpdate
+			payload["ski"] = event.SKI
+			// Copy all payload fields from event
+			for k, v := range event.Payload {
+				payload[k] = v
+			}
+
+		case "shipHandshakeUpdate":
+			action = protocol.EventShipHandshakeUpdate
+			payload["ski"] = event.SKI
+			// Copy all payload fields from event
+			for k, v := range event.Payload {
+				payload[k] = v
+			}
+
 		default:
 			log.Printf("Unknown event type: %s", event.Type)
 			return

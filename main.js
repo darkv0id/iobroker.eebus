@@ -232,12 +232,14 @@ class Eebus extends utils.Adapter {
 		});
 
 		// Pairing state update
-		this.bridge.on('pairingStateUpdate', (payload) => {
+		this.bridge.on('pairingStateUpdate', async (payload) => {
 			this.log.info(`Pairing state update: SKI=${payload.ski}, State=${payload.state}`);
 			if (payload.state === 'waiting_for_approval') {
 				this.log.warn('PAIRING REQUIRED: Please approve the pairing request on your EEBus device!');
 			} else if (payload.state === 'approved') {
 				this.log.info('Pairing approved successfully!');
+				// Sync devices after successful pairing to create device objects
+				await this.syncExistingDevices();
 			}
 		});
 
