@@ -148,13 +148,45 @@ class Eebus extends utils.Adapter {
 	}
 
 	/**
+	 * Sync existing devices that were already connected before adapter started
+	 * @returns {Promise<void>}
+	 */
+	async syncExistingDevices() {
+		try {
+			this.log.debug('Syncing existing devices...');
+			const result = await this.bridge.sendCommand('listDevices', {});
+
+			if (result && result.devices && result.devices.length > 0) {
+				this.log.info(`Found ${result.devices.length} existing device(s)`);
+
+				for (const device of result.devices) {
+					this.log.info(`Syncing device: ${device.name} (${device.ski}), connected=${device.connected}`);
+
+					// Create device object
+					await this.stateManager.ensureDeviceExists(device.ski);
+
+					// Update connection state
+					await this.stateManager.updateConnectionState(device.ski, device.connected);
+				}
+			} else {
+				this.log.debug('No existing devices found');
+			}
+		} catch (error) {
+			this.log.warn(`Failed to sync existing devices: ${error.message}`);
+		}
+	}
+
+	/**
 	 * Set up event handlers for the EEBus bridge
 	 */
 	setupBridgeHandlers() {
 		// Bridge connected
-		this.bridge.on('connected', () => {
+		this.bridge.on('connected', async () => {
 			this.log.info('Bridge connected');
 			this.setState('info.connection', true, true);
+
+			// Sync existing devices now that bridge is ready
+			await this.syncExistingDevices();
 		});
 
 		// Bridge disconnected
