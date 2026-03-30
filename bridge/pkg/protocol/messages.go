@@ -28,6 +28,7 @@ type Message struct {
 const (
 	ActionStartDiscovery            = "startDiscovery"
 	ActionStopDiscovery             = "stopDiscovery"
+	ActionRegisterDevice            = "registerDevice"
 	ActionConnectDevice             = "connectDevice"
 	ActionDisconnectDevice          = "disconnectDevice"
 	ActionSubscribeMeasurements     = "subscribeMeasurements"
@@ -38,12 +39,14 @@ const (
 
 // Event Actions (Go -> Node.js)
 const (
-	EventReady              = "ready"
-	EventDeviceDiscovered   = "deviceDiscovered"
-	EventDeviceConnected    = "deviceConnected"
-	EventDeviceDisconnected = "deviceDisconnected"
-	EventMeasurementUpdate  = "measurementUpdate"
-	EventError              = "error"
+	EventReady               = "ready"
+	EventDeviceDiscovered    = "deviceDiscovered"
+	EventDeviceConnected     = "deviceConnected"
+	EventDeviceDisconnected  = "deviceDisconnected"
+	EventMeasurementUpdate   = "measurementUpdate"
+	EventPairingStateUpdate  = "pairingStateUpdate"
+	EventShipHandshakeUpdate = "shipHandshakeUpdate"
+	EventError               = "error"
 )
 
 // DeviceInfo represents discovered device information

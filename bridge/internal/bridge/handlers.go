@@ -24,6 +24,7 @@ func NewHandlerManager(bridge *Bridge) *HandlerManager {
 func (hm *HandlerManager) RegisterAll() {
 	hm.bridge.RegisterHandler(protocol.ActionStartDiscovery, hm.handleStartDiscovery)
 	hm.bridge.RegisterHandler(protocol.ActionStopDiscovery, hm.handleStopDiscovery)
+	hm.bridge.RegisterHandler(protocol.ActionRegisterDevice, hm.handleRegisterDevice)
 	hm.bridge.RegisterHandler(protocol.ActionConnectDevice, hm.handleConnectDevice)
 	hm.bridge.RegisterHandler(protocol.ActionDisconnectDevice, hm.handleDisconnectDevice)
 	hm.bridge.RegisterHandler(protocol.ActionSubscribeMeasurements, hm.handleSubscribeMeasurements)
@@ -60,6 +61,49 @@ func (hm *HandlerManager) handleStopDiscovery(ctx context.Context, msg *protocol
 	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
 		"status": "active",
 		"note":   "Discovery cannot be stopped individually",
+	}), nil
+}
+
+// handleRegisterDevice manually registers a device bypassing mDNS discovery
+func (hm *HandlerManager) handleRegisterDevice(ctx context.Context, msg *protocol.Message) (*protocol.Message, error) {
+	ski, ok := msg.Payload["ski"].(string)
+	if !ok || ski == "" {
+		return nil, fmt.Errorf("missing or invalid 'ski' in payload")
+	}
+
+	ip, ok := msg.Payload["ip"].(string)
+	if !ok || ip == "" {
+		return nil, fmt.Errorf("missing or invalid 'ip' in payload")
+	}
+
+	// Port is optional, defaults to 4712
+	port := 4712
+	if portVal, ok := msg.Payload["port"]; ok {
+		switch v := portVal.(type) {
+		case float64:
+			port = int(v)
+		case int:
+			port = v
+		}
+	}
+
+	log.Printf("Registering device manually: SKI=%s, IP=%s, Port=%d", ski, ip, port)
+
+	service := hm.bridge.GetEEBusService()
+	if service == nil {
+		return nil, fmt.Errorf("EEBus service not initialized")
+	}
+
+	err := service.RegisterDevice(ski, ip, port)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register device: %w", err)
+	}
+
+	return protocol.NewResponse(msg.ID, msg.Action, map[string]interface{}{
+		"status": "registered",
+		"ski":    ski,
+		"ip":     ip,
+		"port":   port,
 	}), nil
 }
 

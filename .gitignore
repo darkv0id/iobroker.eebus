@@ -3,6 +3,14 @@
 !.vscode/
 !.github/
 
+# Environment files (keep .env.example)
+.env
+!.env.example
+
+# Build artifacts
+bin/
+bridge/cert/*.pem
+
 *.code-workspace
 node_modules
 nbproject

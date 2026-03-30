@@ -7,10 +7,13 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/enbility/eebus-go/api"
 	"github.com/enbility/eebus-go/service"
@@ -18,19 +21,22 @@ import (
 	"github.com/enbility/eebus-go/usecases/ma/mpc"
 	shipapi "github.com/enbility/ship-go/api"
 	shipcert "github.com/enbility/ship-go/cert"
+	shipmodel "github.com/enbility/ship-go/model"
 	spineapi "github.com/enbility/spine-go/api"
 	"github.com/enbility/spine-go/model"
 )
 
 // Service wraps the EEBus service and provides integration with our bridge
 type Service struct {
-	service    api.ServiceInterface
-	mgcpUC     *mgcp.MGCP
-	mpcUC      *mpc.MPC
-	config     *Config
-	devices    map[string]*DeviceInfo
-	devicesMux sync.RWMutex
-	eventCB    EventCallback
+	service        api.ServiceInterface
+	mgcpUC         *mgcp.MGCP
+	mpcUC          *mpc.MPC
+	config         *Config
+	devices        map[string]*DeviceInfo
+	devicesMux     sync.RWMutex
+	pairingDevices map[string]bool // SKIs that are waiting for/approved for pairing
+	pairingMux     sync.RWMutex
+	eventCB        EventCallback
 }
 
 // Config holds configuration for the EEBus service
@@ -89,9 +95,10 @@ func NewService(config *Config, eventCB EventCallback) (*Service, error) {
 	}
 
 	s := &Service{
-		config:  config,
-		devices: make(map[string]*DeviceInfo),
-		eventCB: eventCB,
+		config:         config,
+		devices:        make(map[string]*DeviceInfo),
+		pairingDevices: make(map[string]bool),
+		eventCB:        eventCB,
 	}
 
 	return s, nil
@@ -123,9 +130,21 @@ func (s *Service) Start() error {
 		return fmt.Errorf("failed to create configuration: %w", err)
 	}
 
-	// Set network interfaces if specified
+	// Set network interfaces
+	// Only set interfaces if explicitly configured
+	// If not configured, leave empty to use all interfaces (eebus-go default behavior)
 	if len(s.config.Interfaces) > 0 {
+		log.Printf("Using configured network interfaces: %v", s.config.Interfaces)
 		configuration.SetInterfaces(s.config.Interfaces)
+	} else {
+		// Detect interfaces for logging purposes
+		detectedInterfaces, err := s.detectNetworkInterfaces()
+		if err != nil {
+			log.Printf("Warning: Failed to detect network interfaces: %v", err)
+		} else if len(detectedInterfaces) > 0 {
+			log.Printf("Detected network interfaces, using all: %v", detectedInterfaces)
+		}
+		// Don't call SetInterfaces() - let eebus-go use all interfaces by default
 	}
 
 	// Create the EEBus service
@@ -190,6 +209,110 @@ func (s *Service) GetDevice(ski string) (*DeviceInfo, bool) {
 	defer s.devicesMux.RUnlock()
 	device, ok := s.devices[ski]
 	return device, ok
+}
+
+// RegisterDevice manually registers a device with its SKI, IP address, and port
+// This bypasses mDNS discovery and allows direct connection
+func (s *Service) RegisterDevice(ski, ip string, port int) error {
+	if s.service == nil {
+		return fmt.Errorf("service not initialized")
+	}
+
+	log.Printf("Manually registering device - SKI: %s, IP: %s, Port: %d", ski, ip, port)
+
+	// Parse and validate IP address
+	ipAddr := net.ParseIP(ip)
+	if ipAddr == nil {
+		return fmt.Errorf("invalid IP address: %s", ip)
+	}
+
+	// Add device to pairing list so AllowWaitingForTrust returns true
+	s.pairingMux.Lock()
+	s.pairingDevices[ski] = true
+	s.pairingMux.Unlock()
+	log.Printf("Added device to pairing list: SKI=%s", ski)
+
+	// Mark the device as trusted/paired in the service
+	s.service.RegisterRemoteSKI(ski)
+
+	// Access the private connectionsHub field using reflection
+	// This is necessary because eebus-go doesn't expose the hub's ReportMdnsEntries method
+	serviceValue := reflect.ValueOf(s.service)
+	if serviceValue.Kind() == reflect.Ptr {
+		serviceValue = serviceValue.Elem()
+	}
+
+	// Get the connectionsHub field
+	hubField := serviceValue.FieldByName("connectionsHub")
+	if !hubField.IsValid() {
+		return fmt.Errorf("failed to access connectionsHub field")
+	}
+
+	// Make the unexported field accessible
+	hubField = reflect.NewAt(hubField.Type(), unsafe.Pointer(hubField.UnsafeAddr())).Elem()
+
+	// Get the interface value from the field
+	hubInterface := hubField.Interface()
+
+	// Type assert to MdnsReportInterface
+	mdnsReporter, ok := hubInterface.(shipapi.MdnsReportInterface)
+	if !ok {
+		return fmt.Errorf("connectionsHub does not implement MdnsReportInterface")
+	}
+
+	// Create a manual mDNS entry
+	entry := &shipapi.MdnsEntry{
+		Name:       "Manual-" + ski[:8], // Short name for manual entry
+		Ski:        ski,
+		Identifier: "manual-device",
+		Path:       "/ship/",           // Standard SHIP path
+		Register:   false,              // Not registered via mDNS
+		Brand:      "Unknown",
+		Type:       "Unknown",
+		Model:      "Manual Registration",
+		Host:       ip,
+		Port:       port,
+		Addresses:  []net.IP{ipAddr},
+	}
+
+	// Report this entry to the hub, which will trigger connection attempt
+	entries := map[string]*shipapi.MdnsEntry{
+		ski: entry,
+	}
+	mdnsReporter.ReportMdnsEntries(entries, true)
+
+	log.Printf("Device registered successfully - SKI: %s, will attempt connection to %s:%d", ski, ip, port)
+	return nil
+}
+
+// detectNetworkInterfaces returns all available non-loopback network interfaces
+func (s *Service) detectNetworkInterfaces() ([]string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
+	}
+
+	var result []string
+	for _, iface := range interfaces {
+		// Skip loopback and interfaces that are down
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+
+		// Check if interface has IP addresses
+		addrs, err := iface.Addrs()
+		if err != nil {
+			log.Printf("Warning: Failed to get addresses for interface %s: %v", iface.Name, err)
+			continue
+		}
+
+		// Only include interfaces with at least one IP address
+		if len(addrs) > 0 {
+			result = append(result, iface.Name)
+		}
+	}
+
+	return result, nil
 }
 
 // loadOrCreateCertificate loads an existing certificate or creates a new one
@@ -554,6 +677,57 @@ func (s *Service) ServicePairingDetailUpdate(ski string, detail *shipapi.Connect
 		state = string(detail.State())
 	}
 	log.Printf("Service pairing update: SKI=%s, State=%s", ski, state)
+
+	// Emit pairing state event
+	if s.eventCB != nil {
+		s.eventCB(Event{
+			Type: "pairingStateUpdate",
+			SKI:  ski,
+			Payload: map[string]interface{}{
+				"state": state,
+			},
+		})
+	}
+}
+
+// AllowWaitingForTrust determines if we should wait for pairing approval for a device
+func (s *Service) AllowWaitingForTrust(ski string) bool {
+	s.pairingMux.RLock()
+	defer s.pairingMux.RUnlock()
+
+	// If AutoAcceptNew is enabled, allow all devices
+	if s.config.AutoAcceptNew {
+		log.Printf("AllowWaitingForTrust: SKI=%s, allowing (auto-accept enabled)", ski)
+		return true
+	}
+
+	// Check if this device is in our pairing list
+	allowed := s.pairingDevices[ski]
+	log.Printf("AllowWaitingForTrust: SKI=%s, allowed=%v", ski, allowed)
+	return allowed
+}
+
+// HandleShipHandshakeStateUpdate is called during the SHIP handshake process
+func (s *Service) HandleShipHandshakeStateUpdate(ski string, state shipmodel.ShipState) {
+	stateStr := fmt.Sprintf("%v", state.State)
+	errStr := ""
+	if state.Error != nil {
+		errStr = state.Error.Error()
+	}
+
+	log.Printf("SHIP handshake state update: SKI=%s, State=%s, Error=%s", ski, stateStr, errStr)
+
+	// Emit handshake state event
+	if s.eventCB != nil {
+		s.eventCB(Event{
+			Type: "shipHandshakeUpdate",
+			SKI:  ski,
+			Payload: map[string]interface{}{
+				"state": stateStr,
+				"error": errStr,
+			},
+		})
+	}
 }
 
 // LoggingInterface implementation
