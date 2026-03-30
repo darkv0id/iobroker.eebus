@@ -57,6 +57,9 @@ class Eebus extends utils.Adapter {
 			// Start the bridge
 			await this.bridge.start();
 
+			// Register manual device if configured
+			await this.registerManualDevice();
+
 			this.log.info('EEBus adapter started successfully');
 		} catch (error) {
 			this.log.error(`Failed to start EEBus bridge: ${error.message}`);
@@ -116,6 +119,35 @@ class Eebus extends utils.Adapter {
 	}
 
 	/**
+	 * Register manual device if configured
+	 */
+	async registerManualDevice() {
+		const ski = this.config.manualDeviceSki;
+		const ip = this.config.manualDeviceIp;
+		const port = this.config.manualDevicePort || 4712;
+
+		// Only register if SKI and IP are provided
+		if (!ski || !ip) {
+			this.log.debug('No manual device configuration found, relying on automatic discovery');
+			return;
+		}
+
+		this.log.info(`Registering manual device: SKI=${ski}, IP=${ip}, Port=${port}`);
+
+		try {
+			await this.bridge.sendCommand('registerDevice', {
+				ski,
+				ip,
+				port,
+			});
+			this.log.info('Manual device registration command sent successfully');
+			this.log.info('If this is the first pairing, you need to approve it on your device!');
+		} catch (error) {
+			this.log.error(`Failed to register manual device: ${error.message}`);
+		}
+	}
+
+	/**
 	 * Set up event handlers for the EEBus bridge
 	 */
 	setupBridgeHandlers() {
@@ -158,7 +190,26 @@ class Eebus extends utils.Adapter {
 		// Measurement update
 		this.bridge.on('measurementUpdate', async (payload) => {
 			this.log.debug(`Measurement update for ${payload.ski}`);
-			await this.stateManager.updateMeasurements(payload.ski, payload.measurements);
+			// The payload contains the measurement data directly (type, value, unit, usecase)
+		await this.stateManager.updateMeasurements(payload.ski, payload);
+		});
+
+		// Pairing state update
+		this.bridge.on('pairingStateUpdate', (payload) => {
+			this.log.info(`Pairing state update: SKI=${payload.ski}, State=${payload.state}`);
+			if (payload.state === 'waiting_for_approval') {
+				this.log.warn('PAIRING REQUIRED: Please approve the pairing request on your EEBus device!');
+			} else if (payload.state === 'approved') {
+				this.log.info('Pairing approved successfully!');
+			}
+		});
+
+		// SHIP handshake state update
+		this.bridge.on('shipHandshakeUpdate', (payload) => {
+			this.log.debug(`SHIP handshake update: SKI=${payload.ski}, State=${payload.state}`);
+			if (payload.error) {
+				this.log.warn(`SHIP handshake error: ${payload.error}`);
+			}
 		});
 
 		// Generic event handler for debugging

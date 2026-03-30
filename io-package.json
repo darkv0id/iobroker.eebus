@@ -85,6 +85,9 @@
 	"native": {
 		"autoDiscovery": true,
 		"certificatePath": "",
+		"manualDeviceSki": "",
+		"manualDeviceIp": "",
+		"manualDevicePort": 4712,
 		"updateInterval": 5,
 		"logLevel": "info"
 	},

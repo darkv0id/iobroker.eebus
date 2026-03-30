@@ -46,6 +46,53 @@
 			"lg": 6,
 			"xl": 6
 		},
+		"_manualDevice": {
+			"type": "header",
+			"text": "Manual Device Registration",
+			"size": 4,
+			"newLine": true
+		},
+		"_manualDeviceInfo": {
+			"type": "staticText",
+			"text": "If automatic discovery doesn't work (e.g., device on different network), you can manually register a device by its SKI, IP address, and port. Leave SKI empty to rely on automatic discovery only.",
+			"newLine": true
+		},
+		"manualDeviceSki": {
+			"type": "text",
+			"label": "Device SKI (Subject Key Identifier)",
+			"placeholder": "e.g., 69898d83b85363ab75428da04c4c31c52cf929f1",
+			"newLine": true,
+			"xs": 12,
+			"sm": 12,
+			"md": 12,
+			"lg": 12,
+			"xl": 12
+		},
+		"manualDeviceIp": {
+			"type": "text",
+			"label": "Device IP Address",
+			"placeholder": "e.g., 192.168.1.100",
+			"newLine": true,
+			"xs": 12,
+			"sm": 12,
+			"md": 6,
+			"lg": 6,
+			"xl": 6
+		},
+		"manualDevicePort": {
+			"type": "number",
+			"label": "Device Port",
+			"placeholder": "4712",
+			"default": 4712,
+			"min": 1,
+			"max": 65535,
+			"newLine": true,
+			"xs": 12,
+			"sm": 12,
+			"md": 6,
+			"lg": 6,
+			"xl": 6
+		},
 		"_advanced": {
 			"type": "header",
 			"text": "Advanced Settings",
