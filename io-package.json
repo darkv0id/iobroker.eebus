@@ -1,8 +1,21 @@
 {
 	"common": {
 		"name": "eebus",
-		"version": "0.0.1",
+		"version": "0.1.0-alpha1",
 		"news": {
+			"0.1.0-alpha1": {
+				"en": "Initial experimental release with basic EEBus protocol support (MGCP/MPC use cases), device discovery, and multi-platform binaries. Warning: Not production-ready, AI-generated code, no device compatibility confirmed.",
+				"de": "Erste experimentelle Version mit grundlegender EEBus-Protokollunterstützung (MGCP/MPC-Anwendungsfälle), Geräteerkennung und Multi-Plattform-Binärdateien. Warnung: Nicht produktionsreif, KI-generierter Code, keine Gerätekompatibilität bestätigt.",
+				"ru": "Первый экспериментальный релиз с базовой поддержкой протокола EEBus (сценарии использования MGCP/MPC), обнаружением устройств и мультиплатформенными бинарными файлами. Предупреждение: не готов для производства, код создан ИИ, совместимость с устройствами не подтверждена.",
+				"pt": "Versão experimental inicial com suporte básico ao protocolo EEBus (casos de uso MGCP/MPC), descoberta de dispositivos e binários multiplataforma. Aviso: Não pronto para produção, código gerado por IA, compatibilidade de dispositivos não confirmada.",
+				"nl": "Eerste experimentele release met basis EEBus-protocolondersteuning (MGCP/MPC use cases), apparaatdetectie en multi-platform binaries. Waarschuwing: Niet productierijp, AI-gegenereerde code, geen apparaatcompatibiliteit bevestigd.",
+				"fr": "Version expérimentale initiale avec support de base du protocole EEBus (cas d'usage MGCP/MPC), découverte d'appareils et binaires multi-plateformes. Avertissement: Non prêt pour la production, code généré par IA, compatibilité des appareils non confirmée.",
+				"it": "Rilascio sperimentale iniziale con supporto di base del protocollo EEBus (casi d'uso MGCP/MPC), rilevamento dispositivi e binari multipiattaforma. Avviso: Non pronto per produzione, codice generato da IA, compatibilità dispositivi non confermata.",
+				"es": "Versión experimental inicial con soporte básico del protocolo EEBus (casos de uso MGCP/MPC), descubrimiento de dispositivos y binarios multiplataforma. Advertencia: No listo para producción, código generado por IA, compatibilidad de dispositivos no confirmada.",
+				"pl": "Wstępne wydanie eksperymentalne z podstawową obsługą protokołu EEBus (przypadki użycia MGCP/MPC), wykrywaniem urządzeń i binariami wieloplatformowymi. Ostrzeżenie: Nie gotowe do produkcji, kod wygenerowany przez AI, kompatybilność urządzeń nie potwierdzona.",
+				"uk": "Початковий експериментальний реліз з базовою підтримкою протоколу EEBus (сценарії MGCP/MPC), виявленням пристроїв та мультиплатформними бінарниками. Попередження: Не готово до виробництва, код створений ШІ, сумісність пристроїв не підтверджена.",
+				"zh-cn": "初始实验版本，支持基本的EEBus协议（MGCP/MPC用例）、设备发现和多平台二进制文件。警告：未准备好生产使用，AI生成的代码，设备兼容性未确认。"
+			},
 			"0.0.1": {
 				"en": "initial release",
 				"de": "Erstveröffentlichung",

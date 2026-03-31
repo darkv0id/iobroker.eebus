@@ -1,6 +1,6 @@
 {
   "name": "iobroker.eebus",
-  "version": "0.0.1",
+  "version": "0.1.0-alpha1",
   "description": "eebus",
   "author": {
     "name": "Seemonster",
