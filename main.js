@@ -11,6 +11,7 @@ const utils = require('@iobroker/adapter-core');
 // Load EEBus bridge and state manager
 const EEBusBridge = require('./lib/eebusBridge');
 const StateManager = require('./lib/stateManager');
+const { normalizeSKI } = require('./lib/skiValidator');
 
 class Eebus extends utils.Adapter {
 	/**
@@ -132,11 +133,14 @@ class Eebus extends utils.Adapter {
 			return;
 		}
 
-		this.log.info(`Registering manual device: SKI=${ski}, IP=${ip}, Port=${port}`);
-
 		try {
+			// Normalize and validate user-provided SKI
+			const normalizedSKI = normalizeSKI(ski);
+
+			this.log.info(`Registering manual device: SKI=${normalizedSKI}, IP=${ip}, Port=${port}`);
+
 			await this.bridge.sendCommand('registerDevice', {
-				ski,
+				ski: normalizedSKI,
 				ip,
 				port,
 			});
