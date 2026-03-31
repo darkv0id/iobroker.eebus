@@ -4,12 +4,15 @@
 echo "Testing EEBus Bridge communication..."
 echo ""
 
+# Change to project root directory
+cd "$(dirname "$0")/.."
+
 # Create a named pipe for communication
 FIFO=$(mktemp -u)
 mkfifo "$FIFO"
 
-# Start the bridge with the fifo as input
-../bin/linux-x64/eebus-bridge < "$FIFO" 2>&1 &
+# Start the bridge with the fifo as input (now from project root)
+./bin/linux-x64/eebus-bridge < "$FIFO" 2>&1 &
 BRIDGE_PID=$!
 
 echo "Bridge started with PID: $BRIDGE_PID"

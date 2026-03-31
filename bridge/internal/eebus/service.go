@@ -326,14 +326,23 @@ func (s *Service) loadOrCreateCertificate() (tls.Certificate, error) {
 	keyFile := filepath.Join(certPath, "key.pem")
 
 	// Try to load existing certificate
-	if _, err := os.Stat(certFile); err == nil {
-		log.Println("Loading existing certificate...")
-		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-		if err != nil {
-			log.Printf("Failed to load certificate, creating new one: %v", err)
+	if _, certErr := os.Stat(certFile); certErr == nil {
+		if _, keyErr := os.Stat(keyFile); keyErr == nil {
+			log.Printf("Loading existing certificate from %s...", certPath)
+			cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+			if err != nil {
+				log.Printf("WARNING: Certificate files exist but failed to load: %v", err)
+				log.Printf("WARNING: This may indicate corrupted certificate files")
+				log.Printf("WARNING: Attempting to create new certificate...")
+			} else {
+				log.Printf("Successfully loaded existing certificate")
+				return cert, nil
+			}
 		} else {
-			return cert, nil
+			log.Printf("Certificate found but key file missing, creating new pair...")
 		}
+	} else {
+		log.Printf("No existing certificate found at %s, creating new one...", certPath)
 	}
 
 	// Create new certificate using ship-go helper
