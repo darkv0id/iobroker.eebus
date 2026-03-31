@@ -729,6 +729,99 @@ func connectionStateToString(state shipapi.ConnectionState) string {
 	}
 }
 
+// shipMessageExchangeStateToString converts ShipMessageExchangeState enum to string name
+func shipMessageExchangeStateToString(state shipmodel.ShipMessageExchangeState) string {
+	switch state {
+	// Connection Mode Initialisation (CMI) SHIP 13.4.3
+	case shipmodel.CmiStateInitStart:
+		return "CmiStateInitStart"
+	case shipmodel.CmiStateClientSend:
+		return "CmiStateClientSend"
+	case shipmodel.CmiStateClientWait:
+		return "CmiStateClientWait"
+	case shipmodel.CmiStateClientEvaluate:
+		return "CmiStateClientEvaluate"
+	case shipmodel.CmiStateServerWait:
+		return "CmiStateServerWait"
+	case shipmodel.CmiStateServerEvaluate:
+		return "CmiStateServerEvaluate"
+	// Connection Data Preparation SHIP 13.4.4
+	case shipmodel.SmeHelloState:
+		return "SmeHelloState"
+	case shipmodel.SmeHelloStateReadyInit:
+		return "SmeHelloStateReadyInit"
+	case shipmodel.SmeHelloStateReadyListen:
+		return "SmeHelloStateReadyListen"
+	case shipmodel.SmeHelloStateReadyTimeout:
+		return "SmeHelloStateReadyTimeout"
+	case shipmodel.SmeHelloStatePendingInit:
+		return "SmeHelloStatePendingInit"
+	case shipmodel.SmeHelloStatePendingListen:
+		return "SmeHelloStatePendingListen"
+	case shipmodel.SmeHelloStatePendingTimeout:
+		return "SmeHelloStatePendingTimeout"
+	case shipmodel.SmeHelloStateOk:
+		return "SmeHelloStateOk"
+	case shipmodel.SmeHelloStateAbort:
+		return "SmeHelloStateAbort"
+	case shipmodel.SmeHelloStateAbortDone:
+		return "SmeHelloStateAbortDone"
+	case shipmodel.SmeHelloStateRemoteAbortDone:
+		return "SmeHelloStateRemoteAbortDone"
+	case shipmodel.SmeHelloStateRejected:
+		return "SmeHelloStateRejected"
+	// Connection State Protocol Handshake SHIP 13.4.4.2
+	case shipmodel.SmeProtHStateServerInit:
+		return "SmeProtHStateServerInit"
+	case shipmodel.SmeProtHStateClientInit:
+		return "SmeProtHStateClientInit"
+	case shipmodel.SmeProtHStateServerListenProposal:
+		return "SmeProtHStateServerListenProposal"
+	case shipmodel.SmeProtHStateServerListenConfirm:
+		return "SmeProtHStateServerListenConfirm"
+	case shipmodel.SmeProtHStateClientListenChoice:
+		return "SmeProtHStateClientListenChoice"
+	case shipmodel.SmeProtHStateTimeout:
+		return "SmeProtHStateTimeout"
+	case shipmodel.SmeProtHStateClientOk:
+		return "SmeProtHStateClientOk"
+	case shipmodel.SmeProtHStateServerOk:
+		return "SmeProtHStateServerOk"
+	// Connection PIN State 13.4.5
+	case shipmodel.SmePinStateCheckInit:
+		return "SmePinStateCheckInit"
+	case shipmodel.SmePinStateCheckListen:
+		return "SmePinStateCheckListen"
+	case shipmodel.SmePinStateCheckError:
+		return "SmePinStateCheckError"
+	case shipmodel.SmePinStateCheckBusyInit:
+		return "SmePinStateCheckBusyInit"
+	case shipmodel.SmePinStateCheckBusyWait:
+		return "SmePinStateCheckBusyWait"
+	case shipmodel.SmePinStateCheckOk:
+		return "SmePinStateCheckOk"
+	case shipmodel.SmePinStateAskInit:
+		return "SmePinStateAskInit"
+	case shipmodel.SmePinStateAskProcess:
+		return "SmePinStateAskProcess"
+	case shipmodel.SmePinStateAskRestricted:
+		return "SmePinStateAskRestricted"
+	case shipmodel.SmePinStateAskOk:
+		return "SmePinStateAskOk"
+	// Connection Access Methods Identification 13.4.6
+	case shipmodel.SmeAccessMethodsRequest:
+		return "SmeAccessMethodsRequest"
+	// Handshake approved on both ends
+	case shipmodel.SmeStateApproved:
+		return "SmeStateApproved"
+	// Handshake process is successfully completed
+	case shipmodel.SmeStateComplete:
+		return "SmeStateComplete"
+	default:
+		return fmt.Sprintf("Unknown(%d)", state)
+	}
+}
+
 // ServicePairingDetailUpdate is called when pairing details are updated
 func (s *Service) ServicePairingDetailUpdate(ski string, detail *shipapi.ConnectionStateDetail) {
 	state := "unknown"
@@ -778,7 +871,8 @@ func (s *Service) AllowWaitingForTrust(ski string) bool {
 
 // HandleShipHandshakeStateUpdate is called during the SHIP handshake process
 func (s *Service) HandleShipHandshakeStateUpdate(ski string, state shipmodel.ShipState) {
-	stateStr := fmt.Sprintf("%v", state.State)
+	stateStr := shipMessageExchangeStateToString(state.State)
+	stateNum := uint(state.State)
 	errStr := ""
 	if state.Error != nil {
 		errStr = state.Error.Error()
@@ -786,22 +880,43 @@ func (s *Service) HandleShipHandshakeStateUpdate(ski string, state shipmodel.Shi
 
 	log.Printf("========== SHIP HANDSHAKE UPDATE ==========")
 	log.Printf("SKI: %s", ski)
-	log.Printf("State: %s", stateStr)
-	log.Printf("Error: %s", errStr)
-	log.Printf("Full state struct: %+v", state)
+	log.Printf("State: %s (code: %d)", stateStr, stateNum)
+	if errStr != "" {
+		log.Printf("Error: %s", errStr)
+	}
+	log.Printf("Full state: %+v", state)
+
+	// Log phase information based on state
+	switch {
+	case stateNum >= 0 && stateNum <= 5:
+		log.Printf("Phase: Connection Mode Initialisation (CMI)")
+	case stateNum >= 6 && stateNum <= 17:
+		log.Printf("Phase: SHIP Hello (Connection Data Preparation)")
+	case stateNum >= 18 && stateNum <= 25:
+		log.Printf("Phase: Protocol Handshake")
+	case stateNum >= 26 && stateNum <= 35:
+		log.Printf("Phase: PIN Verification")
+	case stateNum == 36:
+		log.Printf("Phase: Access Methods Identification")
+	case stateNum == 37:
+		log.Printf("Phase: Handshake Approved")
+	case stateNum == 38:
+		log.Printf("Phase: Handshake Complete")
+	}
 	log.Printf("==========================================")
 
-	// Emit handshake state event
+	// Emit handshake state event with detailed information
 	if s.eventCB != nil {
 		s.eventCB(Event{
 			Type: "shipHandshakeUpdate",
 			SKI:  ski,
 			Payload: map[string]interface{}{
-				"state": stateStr,
-				"error": errStr,
+				"state":     stateStr,
+				"stateCode": stateNum,
+				"error":     errStr,
 			},
 		})
-		log.Printf("SHIP handshake event emitted successfully")
+		log.Printf("SHIP handshake event emitted: %s (code: %d)", stateStr, stateNum)
 	}
 }
 

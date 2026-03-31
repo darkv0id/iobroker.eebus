@@ -249,9 +249,12 @@ class Eebus extends utils.Adapter {
 
 		// SHIP handshake state update
 		this.bridge.on('shipHandshakeUpdate', (payload) => {
-			this.log.debug(`SHIP handshake update: SKI=${payload.ski}, State=${payload.state}`);
+			const stateInfo = payload.stateCode !== undefined
+				? `${payload.state} (code: ${payload.stateCode})`
+				: payload.state;
+			this.log.info(`SHIP handshake: SKI=${payload.ski?.substring(0, 12)}..., State=${stateInfo}`);
 			if (payload.error) {
-				this.log.warn(`SHIP handshake error: ${payload.error}`);
+				this.log.warn(`SHIP handshake error for SKI=${payload.ski?.substring(0, 12)}...: ${payload.error}`);
 			}
 		});
 
