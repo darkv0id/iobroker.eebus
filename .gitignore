@@ -9,6 +9,7 @@
 
 # Build artifacts
 bin/
+cert/
 bridge/cert/*.pem
 
 *.code-workspace
