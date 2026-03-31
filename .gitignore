@@ -12,6 +12,9 @@ bin/
 cert/
 bridge/cert/*.pem
 
+# Test coverage files
+bridge/coverage.out
+
 *.code-workspace
 node_modules
 nbproject
