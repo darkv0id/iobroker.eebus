@@ -13,6 +13,15 @@ import (
 	"github.com/darkv0id/iobroker.eebus/bridge/pkg/protocol"
 )
 
+// EEBusServiceInterface defines the interface for EEBus service operations
+// This allows for mocking in tests
+type EEBusServiceInterface interface {
+	GetDevices() []*eebus.DeviceInfo
+	GetDevice(ski string) (*eebus.DeviceInfo, bool)
+	RegisterDevice(ski, ip string, port int) error
+	Stop()
+}
+
 // Bridge manages the communication between Node.js and EEBus
 type Bridge struct {
 	input           io.Reader
@@ -22,7 +31,7 @@ type Bridge struct {
 	cancel          context.CancelFunc
 	commandHandlers map[string]CommandHandler
 	wg              sync.WaitGroup
-	eebusService    *eebus.Service
+	eebusService    EEBusServiceInterface
 }
 
 // CommandHandler is a function that handles a command
@@ -46,12 +55,12 @@ func (b *Bridge) RegisterHandler(action string, handler CommandHandler) {
 }
 
 // SetEEBusService sets the EEBus service instance
-func (b *Bridge) SetEEBusService(service *eebus.Service) {
+func (b *Bridge) SetEEBusService(service EEBusServiceInterface) {
 	b.eebusService = service
 }
 
 // GetEEBusService returns the EEBus service instance
-func (b *Bridge) GetEEBusService() *eebus.Service {
+func (b *Bridge) GetEEBusService() EEBusServiceInterface {
 	return b.eebusService
 }
 
