@@ -8,7 +8,7 @@
 !.env.example
 
 # Build artifacts
-bin/
+# Note: bin/ contains pre-built binaries for distribution, so it's tracked in git
 cert/
 bridge/cert/*.pem
 
