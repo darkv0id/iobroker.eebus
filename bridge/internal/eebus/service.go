@@ -631,20 +631,35 @@ func (s *Service) handleFrequencyUpdate(ski string, entity spineapi.EntityRemote
 
 // RemoteSKIConnected is called when a remote SKI connects
 func (s *Service) RemoteSKIConnected(service api.ServiceInterface, ski string) {
-	log.Printf("Remote SKI connected: %s", ski)
+	log.Printf("========== REMOTE SKI CONNECTED ==========")
+	log.Printf("SKI: %s", ski)
+	log.Printf("Service: %v", service)
 
 	s.devicesMux.Lock()
+	deviceExists := false
 	if device, exists := s.devices[ski]; exists {
+		deviceExists = true
 		device.Connected = true
+		log.Printf("Device found in devices map, marking as connected")
+		log.Printf("Device info: Name=%s, Brand=%s, Model=%s", device.Name, device.BrandName, device.DeviceModel)
+	} else {
+		log.Printf("WARNING: Device %s not found in devices map!", ski)
 	}
 	s.devicesMux.Unlock()
+
+	log.Printf("Device exists in map: %v", deviceExists)
+	log.Printf("Emitting deviceConnected event for SKI: %s", ski)
 
 	if s.eventCB != nil {
 		s.eventCB(Event{
 			Type: "deviceConnected",
 			SKI:  ski,
 		})
+		log.Printf("deviceConnected event emitted successfully")
+	} else {
+		log.Printf("WARNING: eventCB is nil, cannot emit deviceConnected event!")
 	}
+	log.Printf("==========================================")
 }
 
 // RemoteSKIDisconnected is called when a remote SKI disconnects
@@ -719,8 +734,14 @@ func (s *Service) ServicePairingDetailUpdate(ski string, detail *shipapi.Connect
 	state := "unknown"
 	if detail != nil {
 		state = connectionStateToString(detail.State())
+		log.Printf("========== PAIRING STATE UPDATE ==========")
+		log.Printf("SKI: %s", ski)
+		log.Printf("State: %s (raw: %v)", state, detail.State())
+		log.Printf("Detail: %+v", detail)
+	} else {
+		log.Printf("========== PAIRING STATE UPDATE (nil detail) ==========")
+		log.Printf("SKI: %s, State: unknown (detail is nil)", ski)
 	}
-	log.Printf("Service pairing update: SKI=%s, State=%s", ski, state)
 
 	// Emit pairing state event
 	if s.eventCB != nil {
@@ -731,7 +752,11 @@ func (s *Service) ServicePairingDetailUpdate(ski string, detail *shipapi.Connect
 				"state": state,
 			},
 		})
+		log.Printf("Pairing state event emitted successfully")
+	} else {
+		log.Printf("WARNING: eventCB is nil, cannot emit pairing state event!")
 	}
+	log.Printf("==========================================")
 }
 
 // AllowWaitingForTrust determines if we should wait for pairing approval for a device
@@ -759,7 +784,12 @@ func (s *Service) HandleShipHandshakeStateUpdate(ski string, state shipmodel.Shi
 		errStr = state.Error.Error()
 	}
 
-	log.Printf("SHIP handshake state update: SKI=%s, State=%s, Error=%s", ski, stateStr, errStr)
+	log.Printf("========== SHIP HANDSHAKE UPDATE ==========")
+	log.Printf("SKI: %s", ski)
+	log.Printf("State: %s", stateStr)
+	log.Printf("Error: %s", errStr)
+	log.Printf("Full state struct: %+v", state)
+	log.Printf("==========================================")
 
 	// Emit handshake state event
 	if s.eventCB != nil {
@@ -771,6 +801,7 @@ func (s *Service) HandleShipHandshakeStateUpdate(ski string, state shipmodel.Shi
 				"error": errStr,
 			},
 		})
+		log.Printf("SHIP handshake event emitted successfully")
 	}
 }
 
